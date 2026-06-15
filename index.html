@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.5, viewport-fit=cover">
+  <title>观点与证据 · 思辨训练工具</title>
+  <style>
+    :root {
+      --bg: #f7f4f0;
+      --card-bg: #ffffff;
+      --opinion-color: #f28b82;
+      --opinion-light: #fce4e4;
+      --evidence-color: #81c4e8;
+      --evidence-light: #e4f2fa;
+      --neutral-bg: #faf9f7;
+      --neutral-border: #d5d0c8;
+      --text: #3c3836;
+      --text-secondary: #6b6560;
+      --accent: #7c9a92;
+      --ai-btn: #8b6f9e;
+      --save-btn: #5b8c5a;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 20px;
+      --font-main: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      --transition: 0.2s ease;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: var(--font-main);
+      background: linear-gradient(160deg, #f5f0e9 0%, #f0ece5 30%, #f8f5f1 60%);
+      min-height: 100vh; color: var(--text); padding: 16px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app-container {
+      max-width: 960px; margin: 0 auto;
+      background: rgba(255,255,255,0.7); backdrop-filter: blur(20px);
+      border-radius: var(--radius-lg); box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      overflow: hidden; border: 1px solid rgba(200,195,188,0.4);
+    }
+    .nav-header {
+      display: flex; background: #fff; border-bottom: 1px solid #e8e4dc; padding: 0 8px; gap: 4px; flex-wrap: wrap;
+    }
+    .nav-tab {
+      flex: 1 1 auto; min-width: 85px; padding: 14px 8px; text-align: center;
+      cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);
+      border: none; background: transparent; border-bottom: 3px solid transparent;
+      transition: var(--transition); border-radius: 8px 8px 0 0; white-space: nowrap;
+      position: relative;
+    }
+    .nav-tab.active { color: #3c3836; border-bottom-color: var(--accent); background: #faf9f6; }
+    .nav-tab .step-num {
+      display: inline-block; width: 24px; height: 24px; line-height: 24px;
+      border-radius: 50%; background: #e8e4dc; color: #6b6560; font-size: 0.8rem; font-weight: 700; margin-right: 6px;
+    }
+    .nav-tab.active .step-num { background: var(--accent); color: #fff; }
+    .nav-tab.completed .step-num { background: #b8cfc4; color: #fff; }
+    .nav-tab.locked {
+      opacity: 0.5; cursor: not-allowed; pointer-events: none;
+    }
+    .nav-tab.locked .step-num { background: #d5d0c8; color: #8c857d; }
+    .lock-icon {
+      display: inline-block; margin-left: 2px; font-size: 0.7rem; color: #8c857d;
+    }
+    .nav-tab.locked .lock-icon::after { content: "🔒"; }
+
+    .page-content { padding: 24px 20px 28px; min-height: 520px; }
+    .page-panel { display: none; animation: fadeSlide 0.3s ease; }
+    .page-panel.active { display: block; }
+    @keyframes fadeSlide { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform: translateY(0); } }
+
+    .page-title { font-size: 1.3rem; font-weight:700; margin-bottom:6px; }
+    .page-subtitle { font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px; }
+
+    /* 小机器人提示条 */
+    .robot-hint {
+      background: #f4f0ec;
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-left: 4px solid #a0b2a6;
+      font-size: 0.9rem;
+      color: #4a4540;
+    }
+    .robot-hint .robot-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    /* 页面1 */
+    .sorting-area { display:flex; gap:20px; flex-wrap:wrap; margin-top:8px; }
+    .card-pool {
+      flex:1 1 100%; background:var(--neutral-bg); border:2px dashed var(--neutral-border);
+      border-radius:var(--radius-md); padding:16px; min-height:80px;
+      display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start;
+    }
+    .drop-zone {
+      flex:1 1 280px; min-height:220px; border-radius:var(--radius-md); padding:16px;
+      display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start;
+      border:2px solid transparent; transition: all 0.25s ease;
+    }
+    .opinion-zone { background:var(--opinion-light); border-color:#f5d5d3; }
+    .evidence-zone { background:var(--evidence-light); border-color:#cfe3f0; }
+    .drop-zone.drag-over { transform:scale(1.02); box-shadow:var(--shadow-md); }
+    .zone-title { width:100%; font-weight:700; font-size:0.95rem; text-align:center; padding:8px; border-radius:20px; }
+    .opinion-zone .zone-title { background:#fce4e4; color:#a0524a; }
+    .evidence-zone .zone-title { background:#e4f2fa; color:#3d6f8c; }
+
+    .sentence-card {
+      background:#fff; border:1.5px solid #e0dcd5; border-radius:22px;
+      padding:10px 16px; cursor:grab; font-size:0.93rem; font-weight:500;
+      box-shadow:var(--shadow-sm); transition:all 0.2s; user-select:none;
+      display:inline-flex; align-items:center; gap:6px; max-width:300px; touch-action:none;
+    }
+    .sentence-card.dragging { opacity:0.5; transform:scale(0.93); }
+    .sentence-card.in-opinion { border-color:#e8b8b5; background:#fffaf9; }
+    .sentence-card.in-evidence { border-color:#b5d4e8; background:#f9fbfd; }
+    .sentence-card.selected-mobile { outline:3px solid #f0b060; outline-offset:3px; }
+    .card-num {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:22px; height:22px; border-radius:50%; background:#f0ede7;
+      font-size:0.7rem; font-weight:700; color:#8c857d;
+    }
+    .click-sort-btns { display:none; gap:6px; margin-left:6px; }
+    .click-sort-btn {
+      width:26px; height:26px; border-radius:50%; border:2px solid #d5d0c8;
+      background:#fff; cursor:pointer; font-size:0.75rem; display:flex; align-items:center; justify-content:center;
+    }
+    body.touch-device .click-sort-btns { display:flex; }
+
+    /* 页面2 */
+    .claim-selector { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .claim-option {
+      flex:1 1 240px; padding:14px 18px; border-radius:var(--radius-md);
+      border:2px solid #e0dcd5; background:#fff; cursor:pointer;
+      font-weight:600; font-size:0.93rem; text-align:center; transition:var(--transition);
+    }
+    .claim-option:hover { border-color:#b0a99e; box-shadow:var(--shadow-md); }
+    .claim-option.selected { border-color:var(--accent); background:#f5f8f6; box-shadow:0 0 0 4px rgba(124,154,146,0.15); }
+    .claim-option.claim-a { border-left:5px solid #e0887a; }
+    .claim-option.claim-b { border-left:5px solid #7a9eb8; }
+    .evidence-cards { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+    .evidence-card-selectable {
+      background:#fff; border:2px solid #e0dcd5; border-radius:var(--radius-sm);
+      padding:12px 16px; cursor:pointer; font-size:0.9rem; transition:var(--transition);
+      flex:1 1 220px; min-width:180px; position:relative; user-select:none;
+    }
+    .evidence-card-selectable.selected-ev { border-color:var(--accent); background:#f7faf8; }
+    .check-mark {
+      position:absolute; top:8px; right:10px; width:24px; height:24px;
+      border-radius:50%; background:var(--accent); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.75rem; opacity:0; transform:scale(0.5); transition:var(--transition);
+    }
+    .evidence-card-selectable.selected-ev .check-mark { opacity:1; transform:scale(1); }
+    .selected-evidence-area { background:#faf9f6; border-radius:var(--radius-md); padding:16px; margin-top:12px; border:1px solid #e8e4dc; }
+    .selected-ev-item { display:flex; align-items:center; gap:10px; padding:10px; background:#fff; border-radius:var(--radius-sm); margin-bottom:8px; flex-wrap:wrap; }
+    .strength-btn { padding:6px 12px; border-radius:16px; border:1.5px solid #d5d0c8; background:#fff; cursor:pointer; font-size:0.8rem; }
+    .strength-btn.selected-str { background:#3c3836; color:#fff; }
+    .strength-btn.str-strong.selected-str { background:#5b8c5a; }
+    .strength-btn.str-moderate.selected-str { background:#c9a44b; }
+    .strength-btn.str-weak.selected-str { background:#b0806a; }
+
+    /* 页面3 */
+    .sentence-builder { background:#faf9f6; border-radius:var(--radius-md); padding:20px; border:1px solid #e8e4dc; margin-bottom:16px; }
+    .builder-template { font-size:1.1rem; font-weight:600; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .builder-input { min-width:140px; border:none; border-bottom:2px dashed #c5bfb5; background:transparent; font-size:1.05rem; padding:4px 8px; outline:none; }
+    .preview-sentence { background:#fff; padding:14px; margin-top:12px; border-radius:var(--radius-sm); border:1px solid #e8e4dc; }
+    .preview-sentence.has-content { border-color:#c5d5cc; background:#f9fbfa; }
+
+    /* 页面4 */
+    .opinion-cards { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+    .opinion-card {
+      flex:1 1 250px; background:#fff; border:2px solid #e0dcd5; border-radius:var(--radius-md);
+      padding:20px; cursor:pointer; transition:var(--transition); position:relative;
+      box-shadow:var(--shadow-sm);
+    }
+    .opinion-card:hover { border-color:#b0a99e; box-shadow:var(--shadow-md); }
+    .opinion-card.selected { border-color:var(--accent); background:#f5f8f6; box-shadow:0 0 0 4px rgba(124,154,146,0.15); }
+    .opinion-card .card-check {
+      position:absolute; top:12px; right:14px; width:28px; height:28px;
+      border-radius:50%; background:var(--accent); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.8rem; opacity:0; transform:scale(0.5); transition:var(--transition);
+    }
+    .opinion-card.selected .card-check { opacity:1; transform:scale(1); }
+    .opinion-card-num {
+      display:inline-block; width:28px; height:28px; line-height:28px; border-radius:50%;
+      background:#f0ede7; color:#6b6560; font-weight:700; font-size:0.8rem; text-align:center; margin-bottom:8px;
+    }
+    .opinion-card-text { font-size:0.95rem; color:var(--text); line-height:1.5; }
+    .stance-options { margin-top:16px; }
+    .stance-options label { display:block; margin-bottom:8px; font-size:0.95rem; cursor:pointer; }
+    .stance-options input { margin-right:8px; }
+    .reason-area { margin-top:12px; }
+    .reason-area textarea {
+      width:100%; padding:12px; border:1.5px solid #e0dcd5; border-radius:var(--radius-sm);
+      font-family:var(--font-main); font-size:0.9rem; resize:vertical; min-height:80px;
+    }
+    .confirm-btn {
+      display:inline-block; margin-top:10px; padding:10px 20px; background:var(--accent); color:#fff;
+      border:none; border-radius:20px; cursor:pointer; font-weight:600; font-size:0.9rem;
+    }
+
+    .save-continue-btn {
+      display:inline-flex; align-items:center; gap:8px; padding:10px 24px;
+      background:var(--save-btn); color:#fff; border:none; border-radius:24px;
+      cursor:pointer; font-weight:600; box-shadow:0 2px 8px rgba(91,140,90,0.25);
+      font-size:0.9rem;
+    }
+    .reset-btn {
+      display:inline-flex; align-items:center; gap:4px; padding:8px 14px;
+      background:#fff; border:1.5px solid #d5d0c8; border-radius:20px; cursor:pointer; font-size:0.8rem;
+    }
+    .footer-tools {
+      display: flex; justify-content: center; gap: 12px; margin: 16px auto; flex-wrap: wrap;
+    }
+    .data-panel-toggle, .export-btn {
+      display:inline-flex; align-items:center; gap:6px; padding:8px 16px;
+      background:#3c3836; color:#e0dcd5; border:none; border-radius:20px;
+      cursor:pointer; font-size:0.8rem; font-weight:600;
+    }
+    .export-btn { background:#5a6e64; }
+    .export-btn:hover { background:#4a5c53; }
+    .data-panel-toggle:hover { background:#55504a; }
+    .data-panel { display:none; background:#2b2724; color:#d4cfc6; border-radius:var(--radius-md); padding:16px; margin-top:12px; font-family:monospace; font-size:0.78rem; max-height:300px; overflow-y:auto; white-space:pre-wrap; }
+    .data-panel.visible { display:block; }
+
+    .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:#3c3836; color:#fff; padding:10px 20px; border-radius:24px; z-index:2000; transition:transform 0.35s; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <nav class="nav-header">
+    <button class="nav-tab active" data-page="1"><span class="step-num">1</span>观点/证据辨析</button>
+    <button class="nav-tab locked" data-page="2"><span class="step-num">2</span>证据选择 <span class="lock-icon"></span></button>
+    <button class="nav-tab locked" data-page="3"><span class="step-num">3</span>主张—证据连接 <span class="lock-icon"></span></button>
+    <button class="nav-tab locked" data-page="4"><span class="step-num">4</span>典型观点卡比较 <span class="lock-icon"></span></button>
+  </nav>
+
+  <div class="page-content">
+    <!-- 页面1：观点/证据辨析 -->
+    <div class="page-panel active" id="pagePanel1">
+      <div class="page-title">哪些话算证据？</div>
+      <div class="page-subtitle">拖拽句子到对应区域，或点击句子再点击区域（移动端友好）</div>
+      <div class="robot-hint">
+        <span class="robot-icon">🤖</span> 
+        <span>小机器人想听你说：不确定该放到哪边？试着对自己说说这句话的理由，小机器人也许能帮你判断！</span>
+      </div>
+      <div class="sorting-area">
+        <div class="card-pool" id="cardPool"><span class="card-pool-label">待分类句子</span></div>
+        <div class="drop-zone opinion-zone" id="opinionZone"><div class="zone-title">观点 / 想法</div></div>
+        <div class="drop-zone evidence-zone" id="evidenceZone"><div class="zone-title">证据 / 信息</div></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:8px;">
+        <button class="reset-btn" id="resetPage1Btn">重新分类</button>
+        <button class="save-continue-btn" id="savePage1Btn">保存并继续</button>
+      </div>
+    </div>
+
+    <!-- 页面2：证据选择 -->
+    <div class="page-panel" id="pagePanel2">
+      <div class="page-title">哪两条证据最能支持我？</div>
+      <div class="page-subtitle">先选择主张，再挑选两条证据并标注支持强度。</div>
+      <div class="robot-hint">
+        <span class="robot-icon">🤖</span> 
+        <span>小机器人想听你说：选不出证据？和小机器人聊聊你的主张，说说为什么这条证据能支持你。</span>
+      </div>
+      <div class="claim-selector" id="claimSelector">
+        <div class="claim-option claim-a" data-claim="should-reduce">应该减少使用一次性塑料制品</div>
+        <div class="claim-option claim-b" data-claim="not-necessarily">不一定应该减少使用一次性塑料制品</div>
+      </div>
+      <div id="noClaimWarning" style="display:none; color:#c08070; text-align:center; padding:10px;">请先选择一个主张，再挑选证据哦！</div>
+      <div class="evidence-pool-title">可选证据（点击选择，最多2条）</div>
+      <div class="evidence-cards" id="evidencePool2"></div>
+      <div class="selected-evidence-area" id="selectedEvidenceArea" style="display:none;">
+        <div style="font-weight:700; margin-bottom:10px;">你选择的证据：</div>
+        <div id="selectedEvidenceList"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:8px;">
+        <button class="reset-btn" id="resetPage2Btn">重新选择</button>
+        <button class="save-continue-btn" id="savePage2Btn">保存并继续</button>
+      </div>
+    </div>
+
+    <!-- 页面3：主张—证据连接 -->
+    <div class="page-panel" id="pagePanel3">
+      <div class="page-title">把主张和证据连起来</div>
+      <div class="page-subtitle">用句式支架把主张和证据连成一句话。</div>
+      <div class="robot-hint">
+        <span class="robot-icon">🤖</span> 
+        <span>小机器人想听你说：写不出连接句？把你的主张和证据分别念给小机器人听，再试着连起来。</span>
+      </div>
+      <div class="sentence-builder">
+        <div class="builder-template">
+          <span>我认为</span>
+          <input type="text" class="builder-input" id="inputClaim" placeholder="（填写主张）">
+          <span>，因为</span>
+          <input type="text" class="builder-input" id="inputReason" placeholder="（填写证据/理由）">
+          <span>。</span>
+        </div>
+        <div class="preview-sentence" id="previewSentence">完成后的句子会在这里预览...</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:8px;">
+        <button class="reset-btn" id="resetPage3Btn">清空重写</button>
+        <button class="save-continue-btn" id="savePage3Btn">保存并继续</button>
+      </div>
+    </div>
+
+    <!-- 页面4：典型观点卡比较 -->
+    <div class="page-panel" id="pagePanel4">
+      <div class="page-title">看看还有哪些不同看法</div>
+      <div class="page-subtitle">阅读下面三张观点卡，想一想你更接近哪一种？</div>
+      <div class="robot-hint">
+        <span class="robot-icon">🤖</span> 
+        <span>小机器人想听你说：比较观点卡时，把你的犹豫讲给小机器人听，它会帮你理清不同点。</span>
+      </div>
+      <div class="opinion-cards" id="opinionCardsContainer">
+        <div class="opinion-card" data-card="1">
+          <div class="card-check">✓</div>
+          <div class="opinion-card-num">1</div>
+          <div class="opinion-card-text">我认为一次性塑料应该减少，因为校园里每天都会产生很多塑料垃圾。</div>
+        </div>
+        <div class="opinion-card" data-card="2">
+          <div class="card-check">✓</div>
+          <div class="opinion-card-num">2</div>
+          <div class="opinion-card-text">我认为一次性塑料不一定都应该减少，因为它在一些场景下更方便，也更便宜。</div>
+        </div>
+        <div class="opinion-card" data-card="3">
+          <div class="card-check">✓</div>
+          <div class="opinion-card-num">3</div>
+          <div class="opinion-card-text">我认为现在还不能确定，因为我们还不知道替代品是不是真的更环保。</div>
+        </div>
+      </div>
+      <div id="stanceArea" style="display:none;">
+        <div style="font-weight:600; margin-bottom:10px;">看完这些观点后，你现在更接近哪一种？</div>
+        <div class="stance-options">
+          <label><input type="radio" name="stance" value="keep"> 我还是坚持原来的主张</label>
+          <label><input type="radio" name="stance" value="modify"> 我想稍微修改主张</label>
+          <label><input type="radio" name="stance" value="uncertain"> 我现在还不能确定</label>
+        </div>
+        <div class="reason-area">
+          <div style="font-weight:600; margin-bottom:6px;">我这样选择，是因为______。</div>
+          <textarea id="reasonInput4" placeholder="请填写你的理由..."></textarea>
+        </div>
+        <button class="confirm-btn" id="confirmPage4Btn">确认选择</button>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; flex-wrap:wrap; gap:8px;">
+        <button class="reset-btn" id="resetPage4Btn">重新选择</button>
+        <button class="save-continue-btn" id="savePage4Btn">保存并完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-tools">
+    <button class="data-panel-toggle" id="toggleDataBtn">后台采集数据</button>
+    <button class="export-btn" id="exportDataBtn">导出数据 (JSON)</button>
+  </div>
+  <div class="data-panel" id="dataPanel"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  (function() {
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) document.body.classList.add('touch-device');
+
+    const STATE = {
+      unlockedPage: 1,
+      page1: {
+        sentences: [
+          { id:1, text:'一次性塑料很方便。', correct:'opinion' },
+          { id:2, text:'我们班一天扔了23个塑料杯。', correct:'evidence' },
+          { id:3, text:'大家应该保护环境。', correct:'opinion' },
+          { id:4, text:'一次性塑料制品通常比较便宜。', correct:'evidence' },
+          { id:5, text:'我觉得塑料太可怕了。', correct:'opinion' },
+          { id:6, text:'校园垃圾桶里经常能看到塑料包装。', correct:'evidence' },
+          { id:7, text:'纸袋看起来更环保。', correct:'opinion' },
+          { id:8, text:'有些一次性塑料不容易自然分解。', correct:'evidence' }
+        ],
+        currentCategory: {},
+        firstClassification: null,
+        history: [],
+        startTime: Date.now(),
+        selectedMobileId: null
+      },
+      page2: {
+        selectedClaim: null,
+        selectedEvidence: [],
+        evidencePool: [
+          { id:'ev2', text:'我们班一天扔了23个塑料杯。' },
+          { id:'ev4', text:'一次性塑料制品通常比较便宜。' },
+          { id:'ev6', text:'校园垃圾桶里经常能看到塑料包装。' },
+          { id:'ev8', text:'有些一次性塑料不容易自然分解。' },
+          { id:'ev1', text:'一次性塑料很方便（日常使用体验）。' }
+        ],
+        replacementCount: 0,
+        history: []
+      },
+      page3: {
+        claimText: '',
+        reasonText: '',
+        modifiedAfterAI: false,
+        aiCount: 0
+      },
+      page4: {
+        selectedCard: null,
+        stance: null,
+        reason: '',
+        confirmed: false,
+        aiCount: 0
+      },
+      currentPage: '1',
+      dataLog: []
+    };
+
+    function log(type, details) {
+      STATE.dataLog.push({ t: new Date().toISOString(), type, details });
+      updateDataPanel();
+    }
+    function updateDataPanel() {
+      const panel = document.getElementById('dataPanel');
+      if (panel?.classList.contains('visible')) panel.textContent = JSON.stringify(STATE.dataLog, null, 2);
+    }
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    function updateNavLocks() {
+      const tabs = document.querySelectorAll('.nav-tab');
+      tabs.forEach(tab => {
+        const page = parseInt(tab.dataset.page);
+        if (page <= STATE.unlockedPage) {
+          tab.classList.remove('locked');
+        } else {
+          tab.classList.add('locked');
+        }
+      });
+    }
+
+    function isPageComplete(page) {
+      switch(page) {
+        case 1:
+          return STATE.page1.sentences.every(s => STATE.page1.currentCategory[s.id] != null);
+        case 2:
+          return STATE.page2.selectedClaim !== null && STATE.page2.selectedEvidence.length > 0;
+        case 3:
+          return STATE.page3.claimText.trim() !== '' && STATE.page3.reasonText.trim() !== '';
+        case 4:
+          return STATE.page4.confirmed === true;
+        default: return false;
+      }
+    }
+
+    function saveAndContinue(page) {
+      if (!isPageComplete(page)) {
+        const messages = {
+          1: '请把所有句子都分类完成后再保存。',
+          2: '请选择一个主张并至少选择一条证据。',
+          3: '请填写主张和理由后再保存。',
+          4: '请选择观点卡并确认立场后再保存。'
+        };
+        toast(messages[page] || '请完成当前页面后再保存。');
+        return;
+      }
+      log(`page${page}_saved`, { unlocked: STATE.unlockedPage });
+      if (page < 4) {
+        STATE.unlockedPage = Math.max(STATE.unlockedPage, page + 1);
+        updateNavLocks();
+        toast(`页面${page}已保存，页面${page+1}已解锁。`);
+      } else {
+        toast('所有页面已完成！');
+      }
+    }
+
+    function resetPageAndLockFollowing(page) {
+      switch(page) {
+        case 1:
+          STATE.page1.currentCategory = {};
+          STATE.page1.firstClassification = null;
+          STATE.page1.history = [];
+          STATE.page1.startTime = Date.now();
+          clearMobileSelection();
+          renderPage1();
+          break;
+        case 2:
+          STATE.page2.selectedClaim = null;
+          STATE.page2.selectedEvidence = [];
+          STATE.page2.replacementCount = 0;
+          document.querySelectorAll('.claim-option').forEach(o => o.classList.remove('selected'));
+          renderEvidencePool();
+          renderSelectedEvidence();
+          break;
+        case 3:
+          document.getElementById('inputClaim').value = '';
+          document.getElementById('inputReason').value = '';
+          STATE.page3.claimText = '';
+          STATE.page3.reasonText = '';
+          STATE.page3.modifiedAfterAI = false;
+          STATE.page3.aiCount = 0;
+          updatePreview3();
+          break;
+        case 4:
+          STATE.page4.selectedCard = null;
+          STATE.page4.stance = null;
+          STATE.page4.reason = '';
+          STATE.page4.confirmed = false;
+          STATE.page4.aiCount = 0;
+          document.querySelectorAll('.opinion-card').forEach(c => c.classList.remove('selected'));
+          document.getElementById('stanceArea').style.display = 'none';
+          document.querySelectorAll('input[name="stance"]').forEach(r => r.checked = false);
+          document.getElementById('reasonInput4').value = '';
+          break;
+      }
+      STATE.unlockedPage = page;
+      updateNavLocks();
+      toast('已重置，后续页面已锁定。');
+      log(`page${page}_reset`, { unlockedPage: STATE.unlockedPage });
+    }
+
+    function switchPage(num) {
+      num = parseInt(num);
+      if (num > STATE.unlockedPage) {
+        toast('请先完成并保存前面的页面。');
+        return;
+      }
+      STATE.currentPage = String(num);
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('navTab'+num)?.classList.add('active');
+      document.getElementById('pagePanel'+num)?.classList.add('active');
+      if (num === 3) prefillPage3();
+      updateNavCompletion();
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchPage(tab.dataset.page));
+    });
+
+    function updateNavCompletion() {
+      const p1 = isPageComplete(1);
+      const p2 = isPageComplete(2);
+      const p3 = isPageComplete(3);
+      const p4 = isPageComplete(4);
+      document.getElementById('navTab1').classList.toggle('completed', p1);
+      document.getElementById('navTab2').classList.toggle('completed', p2);
+      document.getElementById('navTab3').classList.toggle('completed', p3);
+      document.getElementById('navTab4').classList.toggle('completed', p4);
+    }
+
+    // ---------- 页面1 ----------
+    function getCard(id) { return document.querySelector(`.sentence-card[data-sid="${id}"]`); }
+    function getZone(id) { return STATE.page1.currentCategory[id] || null; }
+
+    function renderPage1() {
+      const pool = document.getElementById('cardPool');
+      const op = document.getElementById('opinionZone');
+      const ev = document.getElementById('evidenceZone');
+      [pool, op, ev].forEach(z => z.querySelectorAll('.sentence-card').forEach(c => c.remove()));
+      STATE.page1.sentences.forEach(s => {
+        const cat = STATE.page1.currentCategory[s.id] || null;
+        const card = createCard1(s);
+        if (cat === 'opinion') { card.classList.add('in-opinion'); op.appendChild(card); }
+        else if (cat === 'evidence') { card.classList.add('in-evidence'); ev.appendChild(card); }
+        else pool.appendChild(card);
+      });
+      if (!pool.querySelector('.card-pool-label')) {
+        const label = document.createElement('span');
+        label.className = 'card-pool-label';
+        label.textContent = '待分类句子';
+        pool.prepend(label);
+      }
+      clearMobileSelection();
+    }
+
+    function createCard1(s) {
+      const card = document.createElement('div');
+      card.className = 'sentence-card';
+      card.setAttribute('data-sid', s.id);
+      card.draggable = !isTouchDevice;
+      card.innerHTML = `<span class="card-num">${s.id}</span><span>${s.text}</span>
+        <span class="click-sort-btns">
+          <button class="click-sort-btn to-opinion" data-act="opinion">💭</button>
+          <button class="click-sort-btn to-evidence" data-act="evidence">📊</button>
+        </span>`;
+      if (!isTouchDevice) {
+        card.addEventListener('dragstart', e => {
+          STATE.page1.selectedMobileId = null;
+          e.dataTransfer.setData('text/plain', s.id);
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          document.querySelectorAll('.drag-over').forEach(z => z.classList.remove('drag-over'));
+        });
+      }
+      card.querySelector('.to-opinion')?.addEventListener('click', e => { e.stopPropagation(); moveCard1(s.id, 'opinion'); });
+      card.querySelector('.to-evidence')?.addEventListener('click', e => { e.stopPropagation(); moveCard1(s.id, 'evidence'); });
+      card.addEventListener('dblclick', () => { if (getZone(s.id)) moveCard1(s.id, null); });
+      return card;
+    }
+
+    function setupDragZones() {
+      const zones = [
+        { el: document.getElementById('opinionZone'), type: 'opinion' },
+        { el: document.getElementById('evidenceZone'), type: 'evidence' },
+        { el: document.getElementById('cardPool'), type: null }
+      ];
+      zones.forEach(({el, type}) => {
+        el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+        el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+        el.addEventListener('drop', e => {
+          e.preventDefault();
+          el.classList.remove('drag-over');
+          const id = parseInt(e.dataTransfer.getData('text/plain'));
+          if (id) moveCard1(id, type);
+        });
+      });
+    }
+
+    function moveCard1(id, zone) {
+      const prev = getZone(id);
+      if (prev === zone) return;
+      if (!STATE.page1.firstClassification) STATE.page1.firstClassification = {...STATE.page1.currentCategory};
+      STATE.page1.currentCategory[id] = zone;
+      STATE.page1.history.push({ id, from: prev, to: zone, time: Date.now() });
+      log('page1_move', { id, to: zone });
+      renderPage1();
+      updateNavCompletion();
+      const card = getCard(id);
+      if (card) { card.style.transform = 'scale(1.05)'; setTimeout(() => { if (card) card.style.transform = ''; }, 200); }
+    }
+
+    function setupMobileSelection() {
+      if (!isTouchDevice) return;
+      document.querySelectorAll('#cardPool, #opinionZone, #evidenceZone').forEach(zone => {
+        zone.addEventListener('click', function(e) {
+          const card = e.target.closest('.sentence-card');
+          if (card) {
+            e.stopPropagation();
+            const id = parseInt(card.dataset.sid);
+            if (STATE.page1.selectedMobileId === id) { clearMobileSelection(); }
+            else {
+              if (STATE.page1.selectedMobileId) getCard(STATE.page1.selectedMobileId)?.classList.remove('selected-mobile');
+              STATE.page1.selectedMobileId = id;
+              card.classList.add('selected-mobile');
+            }
+          } else if (STATE.page1.selectedMobileId) {
+            let target = null;
+            if (zone === document.getElementById('opinionZone')) target = 'opinion';
+            else if (zone === document.getElementById('evidenceZone')) target = 'evidence';
+            else target = null;
+            moveCard1(STATE.page1.selectedMobileId, target);
+          }
+        });
+      });
+    }
+
+    function clearMobileSelection() {
+      if (STATE.page1.selectedMobileId) {
+        getCard(STATE.page1.selectedMobileId)?.classList.remove('selected-mobile');
+        STATE.page1.selectedMobileId = null;
+      }
+    }
+
+    // ---------- 页面2 ----------
+    function selectClaim(el, type) {
+      document.querySelectorAll('.claim-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      STATE.page2.selectedClaim = type;
+      STATE.page2.selectedEvidence = [];
+      STATE.page2.replacementCount = 0;
+      document.getElementById('noClaimWarning').style.display = 'none';
+      renderEvidencePool();
+      renderSelectedEvidence();
+      log('page2_claim', { claim: type });
+      updateNavCompletion();
+    }
+
+    function renderEvidencePool() {
+      const pool = document.getElementById('evidencePool2');
+      pool.innerHTML = '';
+      const selIds = STATE.page2.selectedEvidence.map(s => s.evidenceId);
+      STATE.page2.evidencePool.forEach(ev => {
+        const card = document.createElement('div');
+        card.className = 'evidence-card-selectable';
+        card.dataset.evid = ev.id;
+        if (selIds.includes(ev.id)) card.classList.add('selected-ev');
+        card.innerHTML = `<span>${ev.text}</span><span class="check-mark">✓</span>`;
+        card.addEventListener('click', () => toggleEvidence(ev.id));
+        pool.appendChild(card);
+      });
+    }
+
+    function toggleEvidence(evId) {
+      if (!STATE.page2.selectedClaim) {
+        document.getElementById('noClaimWarning').style.display = 'block';
+        setTimeout(() => { document.getElementById('noClaimWarning').style.display = 'none'; }, 2000);
+        return;
+      }
+      const sel = STATE.page2.selectedEvidence;
+      const idx = sel.findIndex(s => s.evidenceId === evId);
+      if (idx >= 0) {
+        sel.splice(idx, 1);
+        STATE.page2.replacementCount++;
+      } else {
+        if (sel.length >= 2) {
+          sel.shift();
+          STATE.page2.replacementCount++;
+          toast('已替换为新的证据（最多2条）');
+        }
+        sel.push({ evidenceId: evId, strength: null });
+      }
+      renderEvidencePool();
+      renderSelectedEvidence();
+      updateNavCompletion();
+    }
+
+    function setStrength(evId, str) {
+      const item = STATE.page2.selectedEvidence.find(s => s.evidenceId === evId);
+      if (item) { item.strength = str; renderSelectedEvidence(); }
+    }
+
+    function renderSelectedEvidence() {
+      const area = document.getElementById('selectedEvidenceArea');
+      const list = document.getElementById('selectedEvidenceList');
+      if (STATE.page2.selectedEvidence.length === 0) { area.style.display = 'none'; return; }
+      area.style.display = 'block';
+      list.innerHTML = '';
+      STATE.page2.selectedEvidence.forEach(se => {
+        const ev = STATE.page2.evidencePool.find(e => e.id === se.evidenceId);
+        if (!ev) return;
+        const div = document.createElement('div');
+        div.className = 'selected-ev-item';
+        div.innerHTML = `<span style="font-weight:600;">📌 ${ev.text}</span>
+          <div class="strength-selector">
+            <button class="strength-btn str-strong ${se.strength==='strong'?'selected-str':''}" data-str="strong">很能支持</button>
+            <button class="strength-btn str-moderate ${se.strength==='moderate'?'selected-str':''}" data-str="moderate">一般支持</button>
+            <button class="strength-btn str-weak ${se.strength==='weak'?'selected-str':''}" data-str="weak">支持不强</button>
+          </div>`;
+        div.querySelectorAll('.strength-btn').forEach(btn => {
+          btn.addEventListener('click', () => setStrength(se.evidenceId, btn.dataset.str));
+        });
+        list.appendChild(div);
+      });
+    }
+
+    document.querySelectorAll('.claim-option').forEach(opt => {
+      opt.addEventListener('click', function() { selectClaim(this, this.dataset.claim); });
+    });
+
+    // ---------- 页面3 ----------
+    function prefillPage3() {
+      const claimMap = { 'should-reduce':'应该减少使用一次性塑料制品', 'not-necessarily':'不一定应该减少使用一次性塑料制品' };
+      if (STATE.page2.selectedClaim && !STATE.page3.claimText) {
+        document.getElementById('inputClaim').value = claimMap[STATE.page2.selectedClaim] || '';
+        STATE.page3.claimText = document.getElementById('inputClaim').value;
+      }
+      if (!STATE.page3.reasonText && STATE.page2.selectedEvidence.length) {
+        const texts = STATE.page2.selectedEvidence.map(se => {
+          const ev = STATE.page2.evidencePool.find(e => e.id === se.evidenceId);
+          return ev ? ev.text : '';
+        }).filter(Boolean);
+        document.getElementById('inputReason').value = texts.join('；');
+        STATE.page3.reasonText = document.getElementById('inputReason').value;
+      }
+      updatePreview3();
+    }
+
+    function updatePreview3() {
+      const claim = document.getElementById('inputClaim').value.trim();
+      const reason = document.getElementById('inputReason').value.trim();
+      STATE.page3.claimText = claim;
+      STATE.page3.reasonText = reason;
+      const preview = document.getElementById('previewSentence');
+      if (claim || reason) {
+        preview.classList.add('has-content');
+        preview.textContent = `我认为${claim||'______'}，因为${reason||'______'}。`;
+      } else {
+        preview.classList.remove('has-content');
+        preview.textContent = '完成后的句子会在这里预览...';
+      }
+      updateNavCompletion();
+    }
+
+    document.getElementById('inputClaim').addEventListener('input', function() {
+      STATE.page3.claimText = this.value;
+      updatePreview3();
+    });
+    document.getElementById('inputReason').addEventListener('input', function() {
+      STATE.page3.reasonText = this.value;
+      updatePreview3();
+    });
+
+    // ---------- 页面4 ----------
+    const opinionCards = document.querySelectorAll('.opinion-card');
+    const stanceArea = document.getElementById('stanceArea');
+    const reasonInput = document.getElementById('reasonInput4');
+
+    function selectOpinionCard(cardNum) {
+      STATE.page4.selectedCard = cardNum;
+      opinionCards.forEach(c => c.classList.remove('selected'));
+      document.querySelector(`.opinion-card[data-card="${cardNum}"]`)?.classList.add('selected');
+      stanceArea.style.display = 'block';
+      log('page4_card_selected', { card: cardNum });
+      updateNavCompletion();
+    }
+
+    opinionCards.forEach(card => {
+      card.addEventListener('click', () => selectOpinionCard(parseInt(card.dataset.card)));
+    });
+
+    document.getElementById('confirmPage4Btn').addEventListener('click', () => {
+      const stance = document.querySelector('input[name="stance"]:checked')?.value || null;
+      const reason = reasonInput.value.trim();
+      if (!stance) { toast('请选择一种立场'); return; }
+      STATE.page4.stance = stance;
+      STATE.page4.reason = reason;
+      STATE.page4.confirmed = true;
+      log('page4_confirmed', { card: STATE.page4.selectedCard, stance, reason });
+      toast('立场已确认');
+      updateNavCompletion();
+    });
+
+    // 保存并继续按钮
+    document.getElementById('savePage1Btn').addEventListener('click', () => saveAndContinue(1));
+    document.getElementById('savePage2Btn').addEventListener('click', () => saveAndContinue(2));
+    document.getElementById('savePage3Btn').addEventListener('click', () => saveAndContinue(3));
+    document.getElementById('savePage4Btn').addEventListener('click', () => saveAndContinue(4));
+
+    // 重置按钮
+    document.getElementById('resetPage1Btn').addEventListener('click', () => resetPageAndLockFollowing(1));
+    document.getElementById('resetPage2Btn').addEventListener('click', () => resetPageAndLockFollowing(2));
+    document.getElementById('resetPage3Btn').addEventListener('click', () => resetPageAndLockFollowing(3));
+    document.getElementById('resetPage4Btn').addEventListener('click', () => resetPageAndLockFollowing(4));
+
+    // 数据面板与导出
+    document.getElementById('toggleDataBtn').addEventListener('click', () => {
+      const panel = document.getElementById('dataPanel');
+      panel.classList.toggle('visible');
+      updateDataPanel();
+    });
+    document.getElementById('exportDataBtn').addEventListener('click', () => {
+      if (STATE.dataLog.length === 0) { toast('暂无数据可导出'); return; }
+      const jsonStr = JSON.stringify(STATE.dataLog, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.download = `观点证据训练数据_${now}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('数据已导出');
+    });
+
+    // 初始化
+    renderPage1();
+    setupDragZones();
+    setupMobileSelection();
+    renderEvidencePool();
+    updatePreview3();
+    stanceArea.style.display = 'none';
+    updateNavLocks();
+    log('init', { touch: isTouchDevice });
+  })();
+</script>
+</body>
+</html>
